@@ -1,4 +1,3 @@
-# simulador_biblioteca
 # Simulador de Biblioteca - Guia de Autenticação (Bcrypt & JWT)
 
 Este documento contém o guia completo e detalhado sobre como implementar autenticação segura utilizando **Bcrypt** para hash de senhas, **JSON Web Token (JWT)** para emissão/validação de tokens e **Middlewares** para proteção de rotas privadas no projeto.

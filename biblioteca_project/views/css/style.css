@@ -1,0 +1,170 @@
+/* ===== RESET E BASE ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+body {
+  background-color: #f3f5f8;
+  color: #333;
+  padding: 20px;
+}
+
+/* ===== ABAS ===== */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ===== HEADER ===== */
+.header {
+  background: white;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ccc;
+}
+
+.search-bar-container form {
+  display: flex;
+  gap: 5px;
+}
+
+/* ===== NAVEGAÇÃO (TABS) ===== */
+.nav-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.tab-btn {
+  background: white;
+  border: 1px solid #ccc;
+  padding: 10px 15px;
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
+  border-radius: 4px;
+}
+
+.tab-btn.active {
+  background: #1d4ed8;
+  color: white;
+  border-color: #1d4ed8;
+}
+
+/* ===== LISTAS E CARDS ===== */
+.cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.forms-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-card {
+  background: white;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.form-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== INPUTS ===== */
+input,
+select,
+textarea {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+  max-width: 300px;
+}
+
+textarea {
+  max-width: 500px;
+  height: 80px;
+}
+
+/* ===== BOTÕES ===== */
+button,
+.btn-blue {
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: auto;
+}
+
+button:hover,
+.btn-blue:hover {
+  background: #b50505;
+}
+
+/* ===== FOOTER ===== */
+.footer {
+  text-align: center;
+  margin-top: 40px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* ===== LAYOUT DA ABA LIVROS (GRID 2 COLUNAS) ===== */
+#aba-livros .card-item {
+  display: grid !important;
+  grid-template-columns: 130px 1fr;
+  column-gap: 20px;
+  row-gap: 4px;
+  align-items: start;
+  background: white;
+  border: 1px solid #ccc;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+#aba-livros .card-item > img {
+  grid-column: 1;
+  grid-row: 1 / span 10;
+  width: 130px !important;
+  height: 180px !important;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin: 0 !important;
+}
+
+#aba-livros .card-item h3,
+#aba-livros .card-item p,
+#aba-livros .card-item div {
+  grid-column: 2;
+  margin: 0;
+}
+
+#aba-livros .card-item h3 {
+  font-size: 1.2rem;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+#aba-livros .card-item p {
+  font-size: 0.92rem;
+  color: #475569;
+  margin-bottom: 2px;
+}
+
+#aba-livros .card-item > div {
+  margin-top: 10px !important;
+}

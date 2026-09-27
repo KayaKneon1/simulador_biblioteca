@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biblioteca Online LyClari - Início</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo">
+      <span class="icon">📘</span>BIBLIOTECA ONLINE DAS LYCLARI
+    </div>
+
+    <div class="search-bar-container">
+      <form action="/busca" method="POST">
+        <input type="text" id="inputBusca" name="nome" placeholder="Pesquisar nome do livro..." required>
+        <button type="submit">Buscar</button>
+      </form>
+    </div>
+  </header>
+
+  <nav class="nav-tabs">
+    <a href="/livros" class="tab-btn <%= abaAtiva === 'livros' ? 'active' : '' %>">📘 LIVROS</a>
+    <a href="/usuarios" class="tab-btn <%= abaAtiva === 'usuarios' ? 'active' : '' %>">📋 LISTA DE USUÁRIOS</a>
+    <a href="/emprestados" class="tab-btn <%= abaAtiva === 'emprestados' ? 'active' : '' %>">📚 LIVROS EMPRESTADOS</a>
+    <a href="/cadastro" class="tab-btn <%= abaAtiva === 'cadastro' ? 'active' : '' %>">📝 CADASTRO</a>
+  </nav>
+
+  <div class="main-container">
+    <main class="content-left">
+
+      <!-- ===== ABA LIVROS ===== -->
+      <% if (abaAtiva === 'livros') { %>
+        <section id="aba-livros" class="tab-content active">
+          <h2 class="section-title">LIVROS</h2>
+          <div id="container-livros" class="cards-list">
+            <% if (livros.length === 0) { %>
+              <p>Nenhum livro encontrado.</p>
+            <% } else { %>
+              <% livros.forEach(livro => { %>
+                <div class="card-item">
+                  <% if (livro.imagemUrl) { %>
+                    <img src="<%= livro.imagemUrl %>" alt="Capa">
+                  <% } %>
+                  <h3><%= livro.titulo %> (<%= livro.ano %>)</h3>
+                  <p><strong>Autor:</strong> <%= livro.autor %></p>
+                  <p><strong>Categoria:</strong> <%= livro.categoria %></p>
+                  <p><strong>Status:</strong> <%= livro.status %></p>
+                  <p><%= livro.descricao %></p>
+
+                  <div style="display: flex; gap: 10px; padding-top: 10px; border-top: 1px solid #eee; align-items: center;">
+                    <form action="/emprestar" method="POST" style="display: flex; gap: 5px; margin: 0;">
+                      <input type="hidden" name="livroId" value="<%= livro.id %>">
+                      <select name="usuarioId" required style="padding: 4px; border-radius: 4px;">
+                        <option value="">Selecione o Usuário...</option>
+                        <% usuarios.forEach(u => { %>
+                          <option value="<%= u.id %>"><%= u.nome %></option>
+                        <% }) %>
+                      </select>
+                      <% if (livro.status === 'emprestado') { %>
+                        <button
+                          type="button"
+                          disabled
+                          style="background-color: #6c757d; color: #ffffff; border: none; padding: 8px 12px; border-radius: 4px; cursor: not-allowed; opacity: 0.65;">
+                          Indisponível
+                        </button>
+                      <% } else { %>
+                        <button
+                          type="submit"
+                          style="background-color: #0d6efd; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                          Emprestar
+                        </button>
+                      <% } %>
+                    </form>
+
+                    <form action="/editar-livro" method="GET" style="margin: 0;">
+                      <input type="hidden" name="id" value="<%= livro.id %>">
+                      <button type="submit" class="btn-blue">✏️ Editar</button>
+                    </form>
+
+                    <form action="/livros?_method=DELETE" method="POST" style="margin: 0;">
+                      <input type="hidden" name="id" value="<%= livro.id %>">
+                      <button type="submit"
+                              style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;"
+                              onclick="return confirm('Deseja realmente excluir este livro?')">🗑️ Excluir</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            <% } %>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ===== ABA USUÁRIOS ===== -->
+      <% if (abaAtiva === 'usuarios') { %>
+        <section id="aba-usuarios" class="tab-content active">
+          <h2 class="section-title">USUÁRIOS CADASTRADOS</h2>
+          <div id="container-usuarios" class="cards-list">
+            <% if (usuarios.length === 0) { %>
+              <p>Nenhum usuário cadastrado.</p>
+            <% } else { %>
+              <% usuarios.forEach(usuario => { %>
+                <div class="card-item" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
+
+                  <form action="/usuarios?_method=PUT" method="POST" style="margin-bottom: 10px;">
+                    <input type="hidden" name="id" value="<%= usuario.id %>">
+
+                    <div style="margin-bottom: 8px;">
+                      <label><strong>Nome:</strong></label><br>
+                      <input type="text" name="nome" value="<%= usuario.nome %>" required>
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                      <label><strong>E-mail:</strong></label><br>
+                      <input type="email" name="email" value="<%= usuario.email %>" required>
+                    </div>
+
+                    <button type="submit" class="btn-blue">Salvar Alterações</button>
+                  </form>
+
+                  <form action="/usuarios?_method=DELETE" method="POST">
+                    <input type="hidden" name="id" value="<%= usuario.id %>">
+                    <button type="submit"
+                            style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">
+                      Excluir Usuário
+                    </button>
+                  </form>
+                </div>
+              <% }) %>
+            <% } %>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ===== ABA EMPRESTADOS ===== -->
+      <% if (abaAtiva === 'emprestados') { %>
+        <section id="aba-emprestados" class="tab-content active">
+          <h2 class="section-title">LIVROS EMPRESTADOS</h2>
+          <div id="container-emprestimos" class="cards-list">
+            <% if (!emprestimos || emprestimos.length === 0) { %>
+              <p>Nenhum empréstimo ativo no momento.</p>
+            <% } else { %>
+              <% emprestimos.forEach(item => { %>
+                <div class="card-item" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
+                  <h3>Livro: <%= item.livro %></h3>
+                  <p>Emprestado para: <%= item.usuario %></p>
+
+                  <form action="/devolver/<%= item.id %>" method="POST">
+                    <button type="submit"
+                            style="background-color: #dc3545; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px;">
+                      Devolver
+                    </button>
+                  </form>
+                </div>
+              <% }) %>
+            <% } %>
+          </div>
+        </section>
+      <% } %>
+
+      <!-- ===== ABA CADASTRO ===== -->
+      <% if (abaAtiva === 'cadastro') { %>
+        <section id="aba-cadastro" class="tab-content active">
+          <div class="forms-wrapper">
+
+            <div class="form-card">
+              <h3>Cadastrar Novo Livro</h3>
+              <form action="/cadastrar-livro" method="POST">
+                <input type="text" name="titulo" placeholder="Título" required>
+                <input type="text" name="autor" placeholder="Autor" required>
+                <input type="number" name="ano" placeholder="Ano de Publicação" required>
+                <input type="text" name="categoria" placeholder="Categoria (ex: Ficção, História)" required>
+                <input type="text" name="imagemUrl" placeholder="URL da Imagem da Capa">
+                <textarea name="descricao" placeholder="Descrição do livro..."></textarea>
+                <button type="submit" class="btn-blue">Salvar Livro</button>
+              </form>
+            </div>
+
+            <div class="form-card">
+              <h3>Cadastrar Novo Usuário</h3>
+              <form action="/cadastrar-usuario" method="POST">
+                <input type="text" name="nome" placeholder="Nome Completo" required>
+                <input type="email" name="email" placeholder="E-mail" required>
+                <button type="submit" class="btn-blue">Salvar Usuário</button>
+              </form>
+            </div>
+
+          </div>
+        </section>
+      <% } %>
+
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 Biblioteca Online LyClari. Todos os direitos reservados.</p>
+  </footer>
+
+</body>
+</html>

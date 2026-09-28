@@ -1,5 +1,6 @@
 const express = require('express');
 const methodOverride = require('method-override');
+const session = require('express-session');
 const path = require('path');
 
 const logger = require('./Middlewares/logger');
@@ -8,21 +9,36 @@ const prisma = require('./lib/prisma');
 const app = express();
 const port = 5000;
 
-// ===== Middlewares =====
+// ===== Middlewares básicos =====
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(logger);
+
+// ===== Sessão =====
+app.use(session({
+  secret: 'lyclari-biblioteca-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 4 } // 4h
+}));
 
 // ===== EJS como engine para .html =====
 app.engine('html', require('ejs').__express);
 app.set('view engine', 'html');
 app.set('views', path.join(__dirname, 'views', 'html'));
 
-// ===== Arquivos estáticos (css e js) =====
+// ===== Arquivos estáticos =====
 app.use('/css', express.static(path.join(__dirname, 'views', 'css')));
 app.use('/js',  express.static(path.join(__dirname, 'views', 'js')));
 
-// ===== Helper: busca tudo do banco e renderiza =====
+// ===== Disponibiliza usuário logado em todas as views =====
+app.use((req, res, next) => {
+  res.locals.usuarioLogado = req.session.usuario || null;
+  next();
+});
+
+// ===== Helper: renderizarIndex =====
 async function renderizarIndex(res, abaAtiva, dadosExtras = {}) {
   const livros = await prisma.livro.findMany({ orderBy: { id: 'asc' } });
   const usuarios = await prisma.usuario.findMany({ orderBy: { id: 'asc' } });
@@ -46,14 +62,122 @@ async function renderizarIndex(res, abaAtiva, dadosExtras = {}) {
   });
 }
 
-// ===== Rotas GET =====
+// =========================================================
+// ROTAS GET
+// =========================================================
+
 app.get('/',            async (req, res) => renderizarIndex(res, 'livros'));
 app.get('/livros',      async (req, res) => renderizarIndex(res, 'livros'));
 app.get('/usuarios',    async (req, res) => renderizarIndex(res, 'usuarios'));
 app.get('/emprestados', async (req, res) => renderizarIndex(res, 'emprestados'));
-app.get('/cadastro',    async (req, res) => renderizarIndex(res, 'cadastro'));
 
-// ===== Busca por título =====
+// Aba interna do index: cadastro de livro
+app.get('/cadastro-livro', async (req, res) => renderizarIndex(res, 'cadastro-livro'));
+
+// Página separada de login
+app.get('/login', (req, res) => {
+  if (req.session.usuario) return res.redirect('/livros');
+  const sucesso = req.query.cadastro === 'ok'
+    ? 'Conta criada com sucesso! Faça login para continuar.'
+    : null;
+  res.render('login.html', { erro: null, sucesso });
+});
+
+// Página separada de cadastro (link do /login)
+app.get('/cadastro', (req, res) => {
+  if (req.session.usuario) return res.redirect('/livros');
+  res.render('cadastro.html', { erro: null, sucesso: null });
+});
+
+// =========================================================
+// AUTENTICAÇÃO
+// =========================================================
+
+// Cadastrar usuário (vem apenas da página /cadastro)
+app.post('/cadastrar-usuario', async (req, res) => {
+  const { nome, email, senha, confirmarSenha } = req.body;
+
+  try {
+    if (!nome || !email || !senha || !confirmarSenha) {
+      return res.render('cadastro.html', {
+        erro: 'Preencha todos os campos.',
+        sucesso: null
+      });
+    }
+    if (senha !== confirmarSenha) {
+      return res.render('cadastro.html', {
+        erro: 'As senhas não coincidem.',
+        sucesso: null
+      });
+    }
+    if (senha.length < 6) {
+      return res.render('cadastro.html', {
+        erro: 'A senha deve ter no mínimo 6 caracteres.',
+        sucesso: null
+      });
+    }
+
+    const existente = await prisma.usuario.findUnique({ where: { email } });
+    if (existente) {
+      return res.render('cadastro.html', {
+        erro: 'Este e-mail já está cadastrado.',
+        sucesso: null
+      });
+    }
+
+    // ⚠️ Sem hash: salvando senha em texto puro (APENAS PARA DEMONSTRAÇÃO)
+    await prisma.usuario.create({
+      data: { nome, email, senha }
+    });
+
+    return res.redirect('/login?cadastro=ok');
+  } catch (erro) {
+    console.error('Erro ao cadastrar usuário:', erro);
+    return res.render('cadastro.html', {
+      erro: 'Erro ao cadastrar usuário. Tente novamente.',
+      sucesso: null
+    });
+  }
+});
+
+// Login
+app.post('/login', async (req, res) => {
+  const { email, senha } = req.body;
+
+  try {
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+
+    // ⚠️ Sem hash: comparação direta de string
+    if (!usuario || usuario.senha !== senha) {
+      return res.render('login.html', {
+        erro: 'E-mail ou senha inválidos.',
+        sucesso: null
+      });
+    }
+
+    req.session.usuario = {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email
+    };
+
+    res.redirect('/livros');
+  } catch (erro) {
+    console.error('Erro no login:', erro);
+    res.render('login.html', { erro: 'Erro ao fazer login.', sucesso: null });
+  }
+});
+
+// Logout
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login'));
+});
+
+// =========================================================
+// LIVROS
+// =========================================================
+
+// Busca
 app.post('/busca', async (req, res) => {
   try {
     const titulo = (req.body.nome || '').trim();
@@ -84,23 +208,7 @@ app.post('/busca', async (req, res) => {
   }
 });
 
-// ===== Cadastrar usuário =====
-app.post('/cadastrar-usuario', async (req, res) => {
-  try {
-    await prisma.usuario.create({
-      data: {
-        nome: req.body.nome,
-        email: req.body.email
-      }
-    });
-    res.redirect('/usuarios');
-  } catch (erro) {
-    console.error('Erro ao cadastrar usuário:', erro);
-    res.status(500).send('Erro ao cadastrar usuário');
-  }
-});
-
-// ===== Cadastrar livro =====
+// Cadastrar livro
 app.post('/cadastrar-livro', async (req, res) => {
   try {
     const { titulo, autor, ano, categoria, imagemUrl, descricao } = req.body;
@@ -124,7 +232,106 @@ app.post('/cadastrar-livro', async (req, res) => {
   }
 });
 
-// ===== Emprestar livro =====
+// Form de edição
+app.get('/editar-livro', async (req, res) => {
+  try {
+    const livro = await prisma.livro.findUnique({
+      where: { id: Number(req.query.id) }
+    });
+    if (!livro) return res.status(404).send('Livro não encontrado.');
+
+    res.render('editar-livro.html', { livro });
+  } catch (erro) {
+    console.error('Erro ao buscar livro:', erro);
+    res.status(500).send('Erro ao buscar livro');
+  }
+});
+
+// Atualizar livro
+app.put('/livros/:id', async (req, res) => {
+  try {
+    const { titulo, autor, ano, categoria, imagemUrl, descricao } = req.body;
+
+    await prisma.livro.update({
+      where: { id: Number(req.params.id) },
+      data: {
+        titulo,
+        autor,
+        ano: Number(ano),
+        categoria,
+        imagemUrl,
+        descricao
+      }
+    });
+
+    res.redirect('/livros');
+  } catch (erro) {
+    console.error('Erro ao atualizar livro:', erro);
+    res.status(500).send('Erro ao atualizar livro');
+  }
+});
+
+// Excluir livro
+app.delete('/livros', async (req, res) => {
+  try {
+    const id = Number(req.body.id);
+
+    const emprestimo = await prisma.emprestimo.findFirst({
+      where: { livroId: id }
+    });
+    if (emprestimo) {
+      await prisma.emprestimo.delete({ where: { id: emprestimo.id } });
+    }
+
+    await prisma.livro.delete({ where: { id } });
+    res.redirect('/livros');
+  } catch (erro) {
+    console.error('Erro ao excluir livro:', erro);
+    res.status(500).send('Erro ao excluir livro');
+  }
+});
+
+// =========================================================
+// USUÁRIOS
+// =========================================================
+
+// Atualizar usuário
+app.put('/usuarios', async (req, res) => {
+  try {
+    const { id, nome, email } = req.body;
+
+    await prisma.usuario.update({
+      where: { id: Number(id) },
+      data: { nome, email }
+    });
+
+    res.redirect('/usuarios');
+  } catch (erro) {
+    console.error('Erro ao atualizar usuário:', erro);
+    res.status(500).send('Erro ao atualizar usuário');
+  }
+});
+
+// Excluir usuário
+app.delete('/usuarios', async (req, res) => {
+  try {
+    const id = Number(req.body.id);
+
+    await prisma.emprestimo.deleteMany({ where: { usuarioId: id } });
+    await prisma.usuario.delete({ where: { id } });
+
+    res.redirect('/usuarios');
+  } catch (erro) {
+    console.error('Erro ao excluir usuário:', erro);
+    res.status(500).send('Erro ao excluir usuário');
+  }
+});
+
+// =========================================================
+// EMPRÉSTIMOS
+// =========================================================
+
+// Emprestar
 app.post('/emprestar', async (req, res) => {
   try {
     const { livroId, usuarioId } = req.body;
@@ -140,10 +347,7 @@ app.post('/emprestar', async (req, res) => {
     }
 
     await prisma.emprestimo.create({
-      data: {
-        livroId: livro.id,
-        usuarioId: usuario.id
-      }
+      data: { livroId: livro.id, usuarioId: usuario.id }
     });
 
     await prisma.livro.update({
@@ -158,7 +362,7 @@ app.post('/emprestar', async (req, res) => {
   }
 });
 
-// ===== Devolver livro =====
+// Devolver
 app.post('/devolver/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -182,85 +386,9 @@ app.post('/devolver/:id', async (req, res) => {
   }
 });
 
-// ===== Editar livro (form) =====
-app.get('/editar-livro', async (req, res) => {
-  try {
-    const livro = await prisma.livro.findUnique({
-      where: { id: Number(req.query.id) }
-    });
-    if (!livro) return res.status(404).send('Livro não encontrado.');
-
-    res.render('editar-livro.html', { livro });
-  } catch (erro) {
-    console.error('Erro ao buscar livro:', erro);
-    res.status(500).send('Erro ao buscar livro');
-  }
-});
-
-// ===== Atualizar livro =====
-app.put('/livros', async (req, res) => {
-  try {
-    const { id, titulo, autor, ano, categoria, imagemUrl, descricao } = req.body;
-
-    await prisma.livro.update({
-      where: { id: Number(id) },
-      data: {
-        titulo,
-        autor,
-        ano: Number(ano),
-        categoria,
-        imagemUrl,
-        descricao
-      }
-    });
-
-    res.redirect('/livros');
-  } catch (erro) {
-    console.error('Erro ao atualizar livro:', erro);
-    res.status(500).send('Erro ao atualizar livro');
-  }
-});
-
-// ===== Atualizar usuário =====
-app.put('/usuarios', async (req, res) => {
-  try {
-    const { id, nome, email } = req.body;
-
-    await prisma.usuario.update({
-      where: { id: Number(id) },
-      data: { nome, email }
-    });
-
-    res.redirect('/usuarios');
-  } catch (erro) {
-    console.error('Erro ao atualizar usuário:', erro);
-    res.status(500).send('Erro ao atualizar usuário');
-  }
-});
-
-// ===== Excluir usuário =====
-app.delete('/usuarios', async (req, res) => {
-  try {
-    await prisma.usuario.delete({ where: { id: Number(req.body.id) } });
-    res.redirect('/usuarios');
-  } catch (erro) {
-    console.error('Erro ao excluir usuário:', erro);
-    res.status(500).send('Erro ao excluir usuário');
-  }
-});
-
-// ===== Excluir livro =====
-app.delete('/livros', async (req, res) => {
-  try {
-    await prisma.livro.delete({ where: { id: Number(req.body.id) } });
-    res.redirect('/livros');
-  } catch (erro) {
-    console.error('Erro ao excluir livro:', erro);
-    res.status(500).send('Erro ao excluir livro');
-  }
-});
-
-// ===== Tratamento global de erros =====
+// =========================================================
+// Tratamento global de erros
+// =========================================================
 app.use((err, req, res, next) => {
   console.error('Erro não tratado:', err);
   res.status(500).send('Erro interno do servidor');

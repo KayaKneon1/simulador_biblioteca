@@ -10,7 +10,7 @@
 
   <header class="header">
     <div class="logo">
-      <span class="icon">📘</span>BIBLIOTECA ONLINE DAS LYCLARI
+      <span class="icon">📘</span> BIBLIOTECA ONLINE DAS LYCLARI
     </div>
 
     <div class="search-bar-container">
@@ -19,13 +19,22 @@
         <button type="submit">Buscar</button>
       </form>
     </div>
+
+    <div class="header-right">
+      <% if (usuarioLogado) { %>
+        <span>Olá, <strong><%= usuarioLogado.nome %></strong></span>
+        <a href="/logout" class="btn-login-nav">Sair</a>
+      <% } else { %>
+        <a href="/login" class="btn-login-nav">🔐 Entrar</a>
+      <% } %>
+    </div>
   </header>
 
   <nav class="nav-tabs">
     <a href="/livros" class="tab-btn <%= abaAtiva === 'livros' ? 'active' : '' %>">📘 LIVROS</a>
     <a href="/usuarios" class="tab-btn <%= abaAtiva === 'usuarios' ? 'active' : '' %>">📋 LISTA DE USUÁRIOS</a>
     <a href="/emprestados" class="tab-btn <%= abaAtiva === 'emprestados' ? 'active' : '' %>">📚 LIVROS EMPRESTADOS</a>
-    <a href="/cadastro" class="tab-btn <%= abaAtiva === 'cadastro' ? 'active' : '' %>">📝 CADASTRO</a>
+    <a href="/cadastro-livro" class="tab-btn <%= abaAtiva === 'cadastro-livro' ? 'active' : '' %>">📝 CADASTRAR LIVRO</a>
   </nav>
 
   <div class="main-container">
@@ -42,7 +51,7 @@
               <% livros.forEach(livro => { %>
                 <div class="card-item">
                   <% if (livro.imagemUrl) { %>
-                    <img src="<%= livro.imagemUrl %>" alt="Capa">
+                    <img src="<%= livro.imagemUrl %>" alt="Capa de <%= livro.titulo %>">
                   <% } %>
                   <h3><%= livro.titulo %> (<%= livro.ano %>)</h3>
                   <p><strong>Autor:</strong> <%= livro.autor %></p>
@@ -50,28 +59,19 @@
                   <p><strong>Status:</strong> <%= livro.status %></p>
                   <p><%= livro.descricao %></p>
 
-                  <div style="display: flex; gap: 10px; padding-top: 10px; border-top: 1px solid #eee; align-items: center;">
+                  <div>
                     <form action="/emprestar" method="POST" style="display: flex; gap: 5px; margin: 0;">
                       <input type="hidden" name="livroId" value="<%= livro.id %>">
-                      <select name="usuarioId" required style="padding: 4px; border-radius: 4px;">
+                      <select name="usuarioId" required style="padding: 4px; border-radius: 4px; max-width: 180px;">
                         <option value="">Selecione o Usuário...</option>
                         <% usuarios.forEach(u => { %>
                           <option value="<%= u.id %>"><%= u.nome %></option>
                         <% }) %>
                       </select>
                       <% if (livro.status === 'emprestado') { %>
-                        <button
-                          type="button"
-                          disabled
-                          style="background-color: #6c757d; color: #ffffff; border: none; padding: 8px 12px; border-radius: 4px; cursor: not-allowed; opacity: 0.65;">
-                          Indisponível
-                        </button>
+                        <button type="button" disabled>Indisponível</button>
                       <% } else { %>
-                        <button
-                          type="submit"
-                          style="background-color: #0d6efd; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                          Emprestar
-                        </button>
+                        <button type="submit">Emprestar</button>
                       <% } %>
                     </form>
 
@@ -83,7 +83,7 @@
                     <form action="/livros?_method=DELETE" method="POST" style="margin: 0;">
                       <input type="hidden" name="id" value="<%= livro.id %>">
                       <button type="submit"
-                              style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;"
+                              style="background-color: #dc3545;"
                               onclick="return confirm('Deseja realmente excluir este livro?')">🗑️ Excluir</button>
                     </form>
                   </div>
@@ -103,8 +103,7 @@
               <p>Nenhum usuário cadastrado.</p>
             <% } else { %>
               <% usuarios.forEach(usuario => { %>
-                <div class="card-item" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
-
+                <div class="card-item">
                   <form action="/usuarios?_method=PUT" method="POST" style="margin-bottom: 10px;">
                     <input type="hidden" name="id" value="<%= usuario.id %>">
 
@@ -124,7 +123,8 @@
                   <form action="/usuarios?_method=DELETE" method="POST">
                     <input type="hidden" name="id" value="<%= usuario.id %>">
                     <button type="submit"
-                            style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">
+                            style="background-color: #dc3545;"
+                            onclick="return confirm('Excluir este usuário?')">
                       Excluir Usuário
                     </button>
                   </form>
@@ -144,15 +144,12 @@
               <p>Nenhum empréstimo ativo no momento.</p>
             <% } else { %>
               <% emprestimos.forEach(item => { %>
-                <div class="card-item" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 8px;">
+                <div class="card-item">
                   <h3>Livro: <%= item.livro %></h3>
                   <p>Emprestado para: <%= item.usuario %></p>
 
                   <form action="/devolver/<%= item.id %>" method="POST">
-                    <button type="submit"
-                            style="background-color: #dc3545; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px;">
-                      Devolver
-                    </button>
+                    <button type="submit" style="background-color: #dc3545;">Devolver</button>
                   </form>
                 </div>
               <% }) %>
@@ -161,13 +158,12 @@
         </section>
       <% } %>
 
-      <!-- ===== ABA CADASTRO ===== -->
-      <% if (abaAtiva === 'cadastro') { %>
-        <section id="aba-cadastro" class="tab-content active">
+      <!-- ===== ABA CADASTRAR LIVRO ===== -->
+      <% if (abaAtiva === 'cadastro-livro') { %>
+        <section id="aba-cadastro-livro" class="tab-content active">
           <div class="forms-wrapper">
-
             <div class="form-card">
-              <h3>Cadastrar Novo Livro</h3>
+              <h3>📚 Cadastrar Novo Livro</h3>
               <form action="/cadastrar-livro" method="POST">
                 <input type="text" name="titulo" placeholder="Título" required>
                 <input type="text" name="autor" placeholder="Autor" required>
@@ -178,16 +174,6 @@
                 <button type="submit" class="btn-blue">Salvar Livro</button>
               </form>
             </div>
-
-            <div class="form-card">
-              <h3>Cadastrar Novo Usuário</h3>
-              <form action="/cadastrar-usuario" method="POST">
-                <input type="text" name="nome" placeholder="Nome Completo" required>
-                <input type="email" name="email" placeholder="E-mail" required>
-                <button type="submit" class="btn-blue">Salvar Usuário</button>
-              </form>
-            </div>
-
           </div>
         </section>
       <% } %>

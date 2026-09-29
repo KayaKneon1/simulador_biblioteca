@@ -218,29 +218,7 @@ app.use((req, res, next) => {
 
 ---
 
-## 7° Passo — Substituindo `req.session.usuario` por `req.user`
-
-**Antes:**
-
-```js
-app.use((req, res, next) => {
-  res.locals.usuarioLogado = req.session.usuario || null;
-  next();
-});
-```
-
-**Depois:**
-
-```js
-app.use((req, res, next) => {
-  res.locals.usuarioLogado = req.user || null;
-  next();
-});
-```
-
----
-
-## 8° Passo — Protegendo rotas e ajustando login/logout
+## 7° Passo — Protegendo rotas e ajustando login/logout
 
 ### Aplicar `autenticarJWT` nas rotas:
 
@@ -357,7 +335,7 @@ return res.redirect('/login?cadastro=ok');
 
 ---
 
-## 9° Passo — (Opcional) Re-hash de senhas antigas
+## 8° Passo — (Opcional) Re-hash de senhas antigas
 
 Se já existirem usuários no banco com senhas em texto puro, crie o arquivo `scripts/rehash-senhas.js`:
 

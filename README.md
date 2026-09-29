@@ -16,9 +16,9 @@
     - JWT_SECRET=uma_chave_muuito_secreta_aqui
     - JWT_EXPIRES_IN=1h
 
-    @ `DATABASE_URL` : localizar o banco de dados;
-    @ `JWT_SECRET`: chave secreta usada para assinar e validar os tokens; 
-    @ `JWT_EXPIRES_IN`: tempo de expiração do token (por exemplo, `1h`).  
+    `DATABASE_URL` : localizar o banco de dados;
+    `JWT_SECRET`: chave secreta usada para assinar e validar os tokens; 
+    `JWT_EXPIRES_IN`: tempo de expiração do token (por exemplo, `1h`).  
 
 # 3° PASSO:
 
@@ -44,9 +44,8 @@ model Usuario {
 '''NO APP.JS'''
 - await prisma.usuario.create({data: {nome, email, senha: hashed}}) //ACIMA DAS ROTAS
 
-//NO TRY DO /LOGIN
-
 ```app.js
+//NO TRY DO /LOGIN
   try {
     const usuario = await prisma.usuario.findUnique({ where: { email } });
 
@@ -120,7 +119,7 @@ module.exports = {
 
 # 6° PASSO
 
-NO *app.js* devemos retirar os seguintes códigos:
+- NO *app.js* devemos retirar os seguintes códigos:
 
 ```app.js
 const session = require('express-session');
@@ -151,7 +150,7 @@ const cookieParser = require('cookie-parser')
 const { autenticarJWT, usuarioOpcional } = require('./Middlewares/auth');
 ```
 
-Depois do `const port = 5000;` adicione esse trecho do codigo:
+- Depois do `const port = 5000;` adicione esse trecho do codigo:
 
 ```app.js
 app.use(cookieParser());
@@ -176,7 +175,7 @@ app.use((req, res, next) => {
 
 # 7º Passo
 
-A seguinte vai ser alteração do meio do código, a primeira alterção vai ser no `app.user`
+- A seguinte vai ser alteração do meio do código, a primeira alterção vai ser no `app.user`
 
 ```app.js
 app.use((req, res, next) => {
@@ -201,7 +200,7 @@ app.use((req, res, next) => {
     - /emprestar
     - /devolver/:id
 
-Como seria a alteração:
+- Como seria a alteração:
 ```app.js
 app.post('/emprestar',      autenticarJWT, async (req, res) => { /* ... */ });
 app.post('/cadastrar-livro',    autenticarJWT, async (req, res) => { /* ... */ });

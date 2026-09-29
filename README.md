@@ -77,7 +77,7 @@ npm install ejs
 
 ---
 
-## 4° Passo — Ajustes no `app.js` (criação e login)
+## 4° Passo — Ajustes no `app.js` (criação e login) #no projeto final não tem por algum motivo
 
 **Acima das rotas**, garanta que o cadastro salve a senha com hash:
 

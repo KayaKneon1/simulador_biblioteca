@@ -1,175 +1,345 @@
-# Autenticação: proteger rotas, hashear senhas e usar JWT
+# 1° PASSO DA AULA, PEDIR PARA INSTALAR
 
- Este README explica passo a passo como proteger rotas privadas, hashear senhas com Bcrypt e gerar/validar tokens JWT no projeto `biblioteca_project`. 
+- `npm install express`: *CASO NÃO TENHAM O NODE_MODULES*;
+- `npm install bcryptjs`: responsável por gerar o hash da senha e comparar em login;
+- `npm install method-override`: si houver algum erro nos metodos override;
+- `npm install cookie-parser`: leitura de cookies para obter o token no servidor;
+- `npm install bcrypt jsonwebtoken dotenv`: carregamento das variáveis de ambiente.
 
-**Resumo das ações**
-- Instalar dependências: `bcrypt` (ou `bcryptjs`), `jsonwebtoken`, `dotenv` (opcional: `cookie-parser`).
-- Hashear senhas ao cadastrar.
-- Comparar senhas ao logar e gerar um JWT.
-- Criar middleware para validar JWT e proteger rotas privadas.
+# 2° PASSO:
 
----
+- Criar um arquivo na *PASTA RAIZ* um *.env*
 
-## 1) Instalar dependências
+    ESCREVAM ESSE CÓDIGO:
 
-No diretório `biblioteca_project`, rode:
+    - DATABASE_URL='file:./dev.db' 
+    - JWT_SECRET=uma_chave_muuito_secreta_aqui
+    - JWT_EXPIRES_IN=1h
 
-```bash
-npm install bcrypt jsonwebtoken dotenv
-# se for usar cookies opcionais para armazenar token:
-npm install cookie-parser
+    @ `DATABASE_URL` : localizar o banco de dados;
+    @ `JWT_SECRET`: chave secreta usada para assinar e validar os tokens; 
+    @ `JWT_EXPIRES_IN`: tempo de expiração do token (por exemplo, `1h`).  
+
+# 3° PASSO:
+
+- ALTERE A TABELA USUÁRIOS DO PRISMA ACRESCENTANDO UM:
+
+```prisma
+model Usuario {
+    [...]
+  senha       String
+
+  emprestimos Emprestimo[]
+}
+```
+- APÓS ISSO:
+
+- `npm install @prisma/client` *REINSTALAR O PRISMA CLIENT*;
+- `npm install @prisma/adapter-better-sqlite3 better-sqlite3` *SI O BETTER-SQLITE DER ERRO POR CONTA DA INPORTAÇÃO*;
+- `npx prisma generate` *GERAR PRISMA*;
+- `npm install ejs` *INSTALAÇÃO DO EJS*;
+
+# 4° PASSO:
+
+'''NO APP.JS'''
+- await prisma.usuario.create({data: {nome, email, senha: hashed}}) //ACIMA DAS ROTAS
+
+//NO TRY DO /LOGIN
+
+```app.js
+  try {
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+
+    if (!usuario || usuario.senha !== senha) {
+      return res.render('login.html', {
+        erro: 'E-mail ou senha inválidos.',
+        sucesso: null
+      });
+    }
+  }
 ```
 
-Observação: no Windows, se houver problemas com `bcrypt` você pode usar `bcryptjs` (API compatível):
-```bash
-npm install bcryptjs
-```
+# 5° PASSO
 
-## 2) Variáveis de ambiente
-Crie um arquivo `.env` (não versionar) com ao menos:
-
-```
-JWT_SECRET=uma_chave_muuito_secreta_aqui
-JWT_EXPIRES_IN=1h
-```
-
-No topo de `app.js` carregue o dotenv e as libs:
-
-```js
-require('dotenv').config();
-const bcrypt = require('bcrypt'); // ou require('bcryptjs')
+- CRIAR UM MIDDLEWARE *auth.js* e acrescentar os comandos dentro:
+```auth.js
 const jwt = require('jsonwebtoken');
-const cookieParser = require('cookie-parser'); // opcional
 
-app.use(cookieParser()); // se usar cookies
+function autenticarJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+
+    const tokenFromHeader =
+        authHeader && authHeader.startsWith('Bearer ')
+            ? authHeader.split(' ')[1]
+            : null;
+
+    const token = tokenFromHeader || req.cookies?.token;
+
+    if (!token) {
+        return res.status(401).render('login.html', {
+            erro: 'Autentique-se para continuar.', sucesso: null
+        });
+    }
+
+    try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = payload;
+        return next();
+
+    } catch (err) {
+        console.error('Token inválido:', err.message);
+
+        return res.status(401).render('login.html', {
+            erro: 'Sessão inválida. Faça login novamente.',
+            sucesso: null
+        });
+    }
+}
+
+function usuarioOpcional(req, res, next) {
+    const token = req.cookies?.token;
+
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+
+    try {
+        req.user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+        req.user = null;
+    }
+    next();
+}
+
+module.exports = {
+    autenticarJWT,
+    usuarioOpcional
+};
 ```
 
-## 3) Hashear senha ao cadastrar usuário
-Substitua a parte que salva `senha` em texto puro por algo como:
+# 6° PASSO
 
-```js
-// dentro de /cadastrar-usuario
-const hashed = await bcrypt.hash(senha, 10); // saltRounds = 10
-await prisma.usuario.create({ data: { nome, email, senha: hashed } });
+NO *app.js* devemos retirar os seguintes códigos:
+
+```app.js
+const session = require('express-session');
 ```
 
-Explicação rápida: `bcrypt.hash` gera um hash seguro; salvar apenas o hash no banco.
+Junto com isso:
 
-## 4) Comparar senha e gerar JWT ao logar
-No handler de `/login` faça:
+```app.js
+app.use(session({
+  secret: 'lyclari-biblioteca-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 4 } // 4h
+}));
+```
 
-```js
-const usuario = await prisma.usuario.findUnique({ where: { email } });
-if (!usuario) { /* erro */ }
+AINDA NO *app.js* Adicionamos 
 
-const match = await bcrypt.compare(senha, usuario.senha);
-if (!match) { /* erro: senha inválida */ }
 
-// Gerar token
-const token = jwt.sign({ id: usuario.id, nome: usuario.nome, email: usuario.email }, process.env.JWT_SECRET, {
-  expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+
+```app.js
+require('dotenv').config();
+
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
+
+const { autenticarJWT, usuarioOpcional } = require('./Middlewares/auth');
+```
+
+Depois do `const port = 5000;` adicione esse trecho do codigo:
+
+```app.js
+app.use(cookieParser());
+```
+
+Com tudo, vamos atualizar o acesso dos middlewares do *app.js*, esse trecho do código que seria alterado:
+
+
+```app.js
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(methodOverride('_method'));
+app.use(logger);
+
+app.use(usuarioOpcional);
+
+app.use((req, res, next) => {
+    res.locals.usuarioLogado = req.user || null;
+    next();
+});
+```
+
+# 7º Passo
+
+A seguinte vai ser alteração do meio do código, a primeira alterção vai ser no `app.user`
+
+```app.js
+app.use((req, res, next) => {
+  res.locals.usuarioLogado = req.session.usuario || null;
+  next();
+});
+```
+
+Retirando o `req.session.usuario` trocando para `req.user`, ficando assim:
+
+```app.js
+app.use((req, res, next) => {
+  res.locals.usuarioLogado = req.user || null;
+  next();
+});
+```
+
+# 8º Passo
+
+- *ACRESCENTAR autenticarJWT:*
+    - /cadastrar-livro
+    - /emprestar
+    - /devolver/:id
+
+Como seria a alteração:
+```app.js
+app.post('/emprestar',      autenticarJWT, async (req, res) => { /* ... */ });
+app.post('/cadastrar-livro',    autenticarJWT, async (req, res) => { /* ... */ });
+app.post('/devolver/:id',   autenticarJWT, async (req, res) => { /* ... */ });
+```
+
+
+- ALTERAR O */login* PARA: 
+
+```app.js
+app.get('/login', (req, res) => {
+
+  if (req.user) {
+    return res.redirect('/livros');
+  }
+
+  const sucesso = req.query.cadastro === 'ok'
+    ? 'Conta criada com sucesso! Faça login para continuar.'
+    : null;
+
+  res.render('login.html', {
+    erro: null,
+    sucesso
+  });
+});
+```
+
+- ALTERAR O */cadastro* PARA:
+
+```app.js
+app.get('/cadastro', (req, res) => {
+  if (req.user) {
+    return res.redirect('/livros');
+  }
+
+  res.render('cadastro.html', {
+    erro: null,
+    sucesso: null
+  });
+});
+```
+
+- NO */login* REMOVER O SEGUINTE CÓDIGO:
+
+```app.js
+    req.session.usuario = {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email
+    };
+```
+
+- APÓS A RETIRADA NO SEU LUGAR ADICIONE NA PARTE DE */login*:
+
+```app.js
+if (!usuario || !(await bcrypt.compare(senha, usuario.senha))) { [...] }
+
+const token = jwt.sign(
+  {
+    id: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+  }
+);
+
+res.cookie('token', token, {
+  httpOnly: true,
+  secure: false
 });
 
-// Opções de entrega do token:
-// 1) Retornar JSON (API): res.json({ token })
-// 2) Armazenar em cookie httpOnly e redirecionar (views):
-res.cookie('token', token, { httpOnly: true, secure: false /* true em prod com HTTPS */ });
 res.redirect('/livros');
 ```
 
-Escolha a opção que se encaixa no seu fluxo: para APIs use `Authorization: Bearer <token>`, para app com views você pode usar cookie httpOnly.
+- SUBSTITUA O */logout* POR:
 
-## 5) Middleware para proteger rotas (validar JWT)
-Exemplo de middleware que aceita header `Authorization: Bearer <token>` ou cookie `token`:
-
-```js
-function autenticarJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const tokenFromHeader = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
-  const token = tokenFromHeader || req.cookies?.token;
-  if (!token) {
-    // se for rota de views, redirecione para login
-    return res.status(401).render('login.html', { erro: 'Autentique-se para continuar.', sucesso: null });
-  }
-
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = payload; // disponibiliza id, nome, email
-    return next();
-  } catch (err) {
-    console.error('Token inválido:', err.message);
-    return res.status(401).render('login.html', { erro: 'Sessão inválida. Faça login novamente.', sucesso: null });
-  }
-}
-
-// Uso: app.get('/rota-privada', autenticarJWT, (req, res) => { ... });
+```app.js
+app.get('/logout', (req, res) => {
+  res.clearCookie('token');
+  res.redirect('/login');
+});
 ```
 
-Se você preferir manter a sessão (`req.session.usuario`), pode checar as duas formas no middleware:
+- NO */cadastrar-usuario* MUDE O:
 
-```js
-function authHybrid(req, res, next) {
-  if (req.session?.usuario) return next();
-  return autenticarJWT(req, res, next);
-}
+```app.js
+    // Cria o hash da senha antes de salvar no banco
+    const senhaHash = await bcrypt.hash(senha, 12);
+
+    await prisma.usuario.create({
+      data: {
+        nome,
+        email,
+        senha: senhaHash
+      }
+    });
+
+    return res.redirect('/login?cadastro=ok');
+
+  } catch (erro) {
+    console.error('Erro ao cadastrar usuário:', erro);
+
+    return res.render('cadastro.html', {
+      erro: 'Erro ao cadastrar usuário. Tente novamente.',
+      sucesso: null
+    });
+  }
+});
 ```
 
-## 6) Re-hash de senhas existentes
-Como o projeto atualmente salva senhas em texto puro, você deve re-hashar as senhas já salvas. Um script útil:
+# 9º Passo
 
-```js
-// scripts/rehash-senhas.js
+Si ja houver algo no banco de dados e quer criptografar os dados, crie `scripts/rehash-senhas.js`:
+
+```rehash-senhas.js
 require('dotenv').config();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 
 (async () => {
   const usuarios = await prisma.usuario.findMany();
+
   for (const u of usuarios) {
-    // heurística simples: hashes Bcrypt começam com $2
     if (!u.senha.startsWith('$2')) {
-      const hashed = await bcrypt.hash(u.senha, 10);
-      await prisma.usuario.update({ where: { id: u.id }, data: { senha: hashed } });
+      const hashed = await bcrypt.hash(u.senha, 12);
+      await prisma.usuario.update({
+        where: { id: u.id },
+        data: { senha: hashed }
+      });
       console.log(`Re-hashed user ${u.id}`);
     }
   }
+
   console.log('Re-hash completo.');
   process.exit(0);
 })();
 ```
 
-Rode com: `node scripts/rehash-senhas.js` (ajuste caminho se necessário).
-
-## 7) Protegendo rotas existentes do projeto
-
-- Para rotas que estão atualmente abertas (ex.: `/cadastrar-livro`, `/emprestar`, `/devolver`), adicione `autenticarJWT` ou `authHybrid` antes do handler.
-- Exemplo:
-
-```js
-app.post('/cadastrar-livro', autenticarJWT, async (req, res) => { ... });
-```
-
-Se o site usa formulários e sessões, prefira `authHybrid` para compatibilidade imediata.
-
-## 8) Boas práticas de segurança
-
-- Guarde `JWT_SECRET` apenas em variáveis de ambiente e não no repositório.
-- Use HTTPS em produção e `secure: true` para cookies.
-- Defina `expiresIn` curto (1h) e implemente refresh tokens se precisar de sessões longas.
-- Nunca exponha tokens em localStorage se o app for acessado por navegadores em domínios não confiáveis.
-
-## 9) Testes rápidos
-
-1. Instale dependências: `npm install`
-2. Adicione `.env` com `JWT_SECRET`.
-3. Re-hash (opcional): `node scripts/rehash-senhas.js`.
-4. Inicie o servidor: `node app.js` ou `npm run dev` se houver script.
-5. Teste login e verifique que o token é retornado ou cookie criado.
-
----
-
-Se quiser, posso:
-- Implementar os trechos no `app.js` para você (substituir cadastro/login existentes).
-- Adicionar o script `scripts/rehash-senhas.js` no projeto.
-
-Arquivo criado: `README.md`

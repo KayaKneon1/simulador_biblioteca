@@ -28,6 +28,7 @@ npm install bcrypt jsonwebtoken dotenv
 ---
 
 ## 2° Passo — Criando o arquivo `.env`
+#O arquivo .env serve para guardar configurações e informações sensíveis do projeto fora do código principal.
 
 Na **pasta raiz** do projeto, crie um arquivo chamado `.env` e adicione:
 

@@ -312,7 +312,7 @@ const token = jwt.sign(
 );
 
 res.cookie('token', token, {
-  httpOnly: true,
+  httpOnly: true, #Retirar Para Testar Token gerado utilizando *console.log(document.cookie)*
   secure: false
 });
 

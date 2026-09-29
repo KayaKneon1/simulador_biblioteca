@@ -147,7 +147,6 @@ app.post('/login', async (req, res) => {
   try {
     const usuario = await prisma.usuario.findUnique({ where: { email } });
 
-    // ⚠️ Sem hash: comparação direta de string
     if (!usuario || usuario.senha !== senha) {
       return res.render('login.html', {
         erro: 'E-mail ou senha inválidos.',

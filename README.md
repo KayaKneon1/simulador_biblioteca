@@ -77,12 +77,12 @@ npm install ejs
 
 ---
 
-## 4° Passo — Ajustes no `app.js` (criação e login) #no projeto final não tem por algum motivo
+## 4° Passo — Ajustes no `app.js` (criação e login) 
 
 **Acima das rotas**, garanta que o cadastro salve a senha com hash:
 
 ```js
-await prisma.usuario.create({ data: { nome, email, senha: hashed } });
+await prisma.usuario.create({ data: { nome, email, senha: hashed } }); #no projeto final não tem por algum motivo
 ```
 
 **No `try` da rota `/login`**, substitua a verificação antiga por:

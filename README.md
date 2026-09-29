@@ -1,6 +1,6 @@
 # Autenticação: proteger rotas, hashear senhas e usar JWT
 
-@ Este README explica passo a passo como proteger rotas privadas, hashear senhas com Bcrypt e gerar/validar tokens JWT no projeto `biblioteca_project`. @
+ Este README explica passo a passo como proteger rotas privadas, hashear senhas com Bcrypt e gerar/validar tokens JWT no projeto `biblioteca_project`. 
 
 **Resumo das ações**
 - Instalar dependências: `bcrypt` (ou `bcryptjs`), `jsonwebtoken`, `dotenv` (opcional: `cookie-parser`).

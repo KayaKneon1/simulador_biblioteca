@@ -41,10 +41,8 @@ model Usuario {
 
 # 4° PASSO:
 
-'''NO APP.JS'''
-- await prisma.usuario.create({data: {nome, email, senha: hashed}}) //ACIMA DAS ROTAS
-
 ```app.js
+ await prisma.usuario.create({data: {nome, email, senha: hashed}}) //ACIMA DAS ROTAS
 //NO TRY DO /LOGIN
   try {
     const usuario = await prisma.usuario.findUnique({ where: { email } });
@@ -60,7 +58,7 @@ model Usuario {
 
 # 5° PASSO
 
-- CRIAR UM MIDDLEWARE *auth.js* e acrescentar os comandos dentro:
+- CRIAR UM MIDDLEWARE **auth.js** e acrescentar os comandos dentro:
 ```auth.js
 const jwt = require('jsonwebtoken');
 
@@ -119,7 +117,7 @@ module.exports = {
 
 # 6° PASSO
 
-- NO *app.js* devemos retirar os seguintes códigos:
+- NO **app.js** devemos retirar os seguintes códigos:
 
 ```app.js
 const session = require('express-session');
@@ -136,7 +134,7 @@ app.use(session({
 }));
 ```
 
-AINDA NO *app.js* Adicionamos 
+AINDA NO **app.js** Adicionamos 
 
 
 
@@ -208,7 +206,7 @@ app.post('/devolver/:id',   autenticarJWT, async (req, res) => { /* ... */ });
 ```
 
 
-- ALTERAR O */login* PARA: 
+- ALTERAR O `*/login*` PARA: 
 
 ```app.js
 app.get('/login', (req, res) => {
@@ -228,7 +226,7 @@ app.get('/login', (req, res) => {
 });
 ```
 
-- ALTERAR O */cadastro* PARA:
+- ALTERAR O `*/cadastro*` PARA:
 
 ```app.js
 app.get('/cadastro', (req, res) => {
@@ -243,7 +241,7 @@ app.get('/cadastro', (req, res) => {
 });
 ```
 
-- NO */login* REMOVER O SEGUINTE CÓDIGO:
+- NO `*/login*` REMOVER O SEGUINTE CÓDIGO:
 
 ```app.js
     req.session.usuario = {
@@ -253,7 +251,7 @@ app.get('/cadastro', (req, res) => {
     };
 ```
 
-- APÓS A RETIRADA NO SEU LUGAR ADICIONE NA PARTE DE */login*:
+- APÓS A RETIRADA NO SEU LUGAR ADICIONE NA PARTE DE `*/login*`:
 
 ```app.js
 if (!usuario || !(await bcrypt.compare(senha, usuario.senha))) { [...] }
@@ -278,7 +276,7 @@ res.cookie('token', token, {
 res.redirect('/livros');
 ```
 
-- SUBSTITUA O */logout* POR:
+- SUBSTITUA O `*/logout*` POR:
 
 ```app.js
 app.get('/logout', (req, res) => {
@@ -287,7 +285,7 @@ app.get('/logout', (req, res) => {
 });
 ```
 
-- NO */cadastrar-usuario* MUDE O:
+- NO `*/cadastrar-usuario*` MUDE O:
 
 ```app.js
     // Cria o hash da senha antes de salvar no banco
@@ -314,9 +312,9 @@ app.get('/logout', (req, res) => {
 });
 ```
 
-# 9º Passo
+# 9º Passo - Opcional
 
-Si ja houver algo no banco de dados e quer criptografar os dados, crie `scripts/rehash-senhas.js`:
+Se ja houver algo no banco de dados e quer criptografar os dados, crie `scripts/rehash-senhas.js`:
 
 ```rehash-senhas.js
 require('dotenv').config();

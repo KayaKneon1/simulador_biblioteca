@@ -372,6 +372,9 @@ node scripts/rehash-senhas.js
 
 ---
 
+printar Tokern
+console.log(document.cookie)
+
 ## Resumo do Fluxo
 
 1. **Instalar** dependências (`bcryptjs`, `jsonwebtoken`, `cookie-parser`, `dotenv`).

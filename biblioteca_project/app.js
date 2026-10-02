@@ -1,7 +1,14 @@
 const express = require('express');
 const methodOverride = require('method-override');
-const session = require('express-session');
 const path = require('path');
+
+require('dotenv').config();
+
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+
+const { autenticarJWT, usuarioOpcional} = require('./Middlewares/auth');
 
 const logger = require('./Middlewares/logger');
 const prisma = require('./lib/prisma');
@@ -9,19 +16,20 @@ const prisma = require('./lib/prisma');
 const app = express();
 const port = 5000;
 
+app.use(cookieParser());
+
 // ===== Middlewares básicos =====
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(logger);
 
-// ===== Sessão =====
-app.use(session({
-  secret: 'lyclari-biblioteca-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 4 } // 4h
-}));
+app.use(usuarioOpcional)
+
+app.use((req, res, next) => {
+  res.locals.usuarioLogado = req.user || null;
+  next();
+})
 
 // ===== EJS como engine para .html =====
 app.engine('html', require('ejs').__express);
@@ -34,7 +42,7 @@ app.use('/js',  express.static(path.join(__dirname, 'views', 'js')));
 
 // ===== Disponibiliza usuário logado em todas as views =====
 app.use((req, res, next) => {
-  res.locals.usuarioLogado = req.session.usuario || null;
+  res.locals.usuarioLogado = req.user || null;
   next();
 });
 
@@ -67,25 +75,32 @@ async function renderizarIndex(res, abaAtiva, dadosExtras = {}) {
 // =========================================================
 
 app.get('/',            async (req, res) => renderizarIndex(res, 'livros'));
-app.get('/livros',      async (req, res) => renderizarIndex(res, 'livros'));
-app.get('/usuarios',    async (req, res) => renderizarIndex(res, 'usuarios'));
-app.get('/emprestados', async (req, res) => renderizarIndex(res, 'emprestados'));
+app.get('/livros',      autenticarJWT, async (req, res) => renderizarIndex(res, 'livros'));
+app.get('/usuarios',    autenticarJWT, async (req, res) => renderizarIndex(res, 'usuarios'));
+app.get('/emprestados', autenticarJWT, async (req, res) => renderizarIndex(res, 'emprestados'));
 
 // Aba interna do index: cadastro de livro
 app.get('/cadastro-livro', async (req, res) => renderizarIndex(res, 'cadastro-livro'));
 
 // Página separada de login
 app.get('/login', (req, res) => {
-  if (req.session.usuario) return res.redirect('/livros');
+  if (req.user) {
+    return res.redirect('/livros')
+  }
+
   const sucesso = req.query.cadastro === 'ok'
     ? 'Conta criada com sucesso! Faça login para continuar.'
-    : null;
-  res.render('login.html', { erro: null, sucesso });
+    :null
+
+  res.render('login.html', {
+    erro: null,
+    sucesso
+  })
 });
 
 // Página separada de cadastro (link do /login)
 app.get('/cadastro', (req, res) => {
-  if (req.session.usuario) return res.redirect('/livros');
+  if (req.user) return res.redirect('/livros');
   res.render('cadastro.html', { erro: null, sucesso: null });
 });
 
@@ -125,14 +140,15 @@ app.post('/cadastrar-usuario', async (req, res) => {
       });
     }
 
-    // ⚠️ Sem hash: salvando senha em texto puro (APENAS PARA DEMONSTRAÇÃO)
+    const senhaHash = await bcrypt.hash(senha, 12)
     await prisma.usuario.create({
-      data: { nome, email, senha }
+      data: { nome, email, senha: senhaHash }
     });
 
     return res.redirect('/login?cadastro=ok');
   } catch (erro) {
     console.error('Erro ao cadastrar usuário:', erro);
+
     return res.render('cadastro.html', {
       erro: 'Erro ao cadastrar usuário. Tente novamente.',
       sucesso: null
@@ -155,11 +171,25 @@ app.post('/login', async (req, res) => {
       });
     }
 
-    req.session.usuario = {
-      id: usuario.id,
-      nome: usuario.nome,
-      email: usuario.email
+    if (!usuario || !(await bcrypt.compare(senha, usuario.senha))){
+
+      const token = jwt.sign(
+        {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: process.env.JWT_EXPIRES_IN || "1h"
+        }
+      )
     };
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: false
+    })
 
     res.redirect('/livros');
   } catch (erro) {
@@ -170,7 +200,7 @@ app.post('/login', async (req, res) => {
 
 // Logout
 app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+  res.redirect('/login');
 });
 
 // =========================================================
@@ -209,7 +239,7 @@ app.post('/busca', async (req, res) => {
 });
 
 // Cadastrar livro
-app.post('/cadastrar-livro', async (req, res) => {
+app.post('/cadastrar-livro', autenticarJWT, async (req, res) => {
   try {
     const { titulo, autor, ano, categoria, imagemUrl, descricao } = req.body;
 

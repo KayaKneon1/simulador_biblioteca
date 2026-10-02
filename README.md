@@ -28,6 +28,7 @@ npm install bcrypt jsonwebtoken dotenv
 ---
 
 ## 2° Passo — Criando o arquivo `.env`
+#O arquivo .env serve para guardar configurações e informações sensíveis do projeto fora do código principal.
 
 Na **pasta raiz** do projeto, crie um arquivo chamado `.env` e adicione:
 
@@ -76,12 +77,12 @@ npm install ejs
 
 ---
 
-## 4° Passo — Ajustes no `app.js` (criação e login)
+## 4° Passo — Ajustes no `app.js` (criação e login) 
 
 **Acima das rotas**, garanta que o cadastro salve a senha com hash:
 
 ```js
-await prisma.usuario.create({ data: { nome, email, senha: hashed } });
+await prisma.usuario.create({ data: { nome, email, senha: hashed } }); #no projeto final não tem por algum motivo
 ```
 
 **No `try` da rota `/login`**, substitua a verificação antiga por:
@@ -218,29 +219,7 @@ app.use((req, res, next) => {
 
 ---
 
-## 7° Passo — Substituindo `req.session.usuario` por `req.user`
-
-**Antes:**
-
-```js
-app.use((req, res, next) => {
-  res.locals.usuarioLogado = req.session.usuario || null;
-  next();
-});
-```
-
-**Depois:**
-
-```js
-app.use((req, res, next) => {
-  res.locals.usuarioLogado = req.user || null;
-  next();
-});
-```
-
----
-
-## 8° Passo — Protegendo rotas e ajustando login/logout
+## 7° Passo — Protegendo rotas e ajustando login/logout
 
 ### Aplicar `autenticarJWT` nas rotas:
 
@@ -312,7 +291,7 @@ const token = jwt.sign(
 );
 
 res.cookie('token', token, {
-  httpOnly: true,
+  httpOnly: true, #Retirar Para Testar Token gerado utilizando *console.log(document.cookie)*
   secure: false
 });
 
@@ -357,7 +336,7 @@ return res.redirect('/login?cadastro=ok');
 
 ---
 
-## 9° Passo — (Opcional) Re-hash de senhas antigas
+## 8° Passo — (Opcional) Re-hash de senhas antigas
 
 Se já existirem usuários no banco com senhas em texto puro, crie o arquivo `scripts/rehash-senhas.js`:
 
@@ -392,6 +371,9 @@ node scripts/rehash-senhas.js
 ```
 
 ---
+
+printar Tokern
+console.log(document.cookie)
 
 ## Resumo do Fluxo
 

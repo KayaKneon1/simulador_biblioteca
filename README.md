@@ -7,7 +7,7 @@ Guia passo a passo para migrar de autenticação via `express-session` para **JW
 ## 1° Passo — Instalação das Dependências
 
 Execute os comandos abaixo na **raiz do projeto**:
-
+ 
 ```bash
 # Caso não tenham o node_modules
 npm install express
